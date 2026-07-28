@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: intake
+      POSTGRES_PASSWORD: intake
+      POSTGRES_DB: intake
+    ports: ["5432:5432"]
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intake"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql://intake:intake@db:5432/intake
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLASSIFIER_MODEL: claude-sonnet-5
+      CONFIDENCE_THRESHOLD: "0.75"
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+    volumes:
+      - ./api:/srv
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  web:
+    build: ./web
+    environment:
+      VITE_API_BASE: http://localhost:8000
+    ports: ["5173:5173"]
+    depends_on: [api]
+    volumes:
+      - ./web:/srv
+      - /srv/node_modules
+
+volumes:
+  pgdata:
