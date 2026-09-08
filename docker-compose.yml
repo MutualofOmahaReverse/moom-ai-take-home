@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: intake
       POSTGRES_PASSWORD: intake
       POSTGRES_DB: intake
-    ports: ["5432:5432"]
+    ports: ["55432:5432"]   # host port moved off 5432 -- most dev machines already have one
     volumes:
       - ./db:/docker-entrypoint-initdb.d:ro
       - pgdata:/var/lib/postgresql/data
