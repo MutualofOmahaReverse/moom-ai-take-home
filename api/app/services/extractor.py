@@ -1,9 +1,9 @@
 """
 Field extraction service.
 
-Once a document has been classified, this service pulls the handful of
-structured fields that the downstream checklist cares about out of the
-document text and writes them to the extraction table.
+Once a document has been classified, this pulls the handful of structured
+fields the checklist cares about out of the document text and writes them to
+the extraction table.
 
 Historically this ran as a nightly batch job over every document in the
 system. It now runs on demand, one document at a time, triggered from the
@@ -15,13 +15,14 @@ import logging
 
 import anthropic
 
-from app.config import ANTHROPIC_API_KEY, CLASSIFIER_MODEL, HAS_API_KEY
+from app.config import ANTHROPIC_API_KEY, CLASSIFIER_MODEL, USE_LIVE_MODEL
 from app.prompts import build_extraction_prompt
+from app.services import offline
 from app import db
 
 logger = logging.getLogger(__name__)
 
-_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if HAS_API_KEY else None
+_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if USE_LIVE_MODEL else None
 
 
 def parse_model_json(raw: str) -> dict:
@@ -56,18 +57,10 @@ def extract_fields(doc_id: int) -> dict:
         logger.info("Document %s is not classified yet, skipping extraction", doc_id)
         return {}
 
-    if not HAS_API_KEY:
-        return {}
-
-    prompt = build_extraction_prompt(doc["doc_type"], doc["content"])
-
-    response = _client.messages.create(
-        model=CLASSIFIER_MODEL,
-        max_tokens=512,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    fields = parse_model_json(response.content[0].text)
+    if USE_LIVE_MODEL:
+        fields = _extract_with_model(doc)
+    else:
+        fields = offline.extract(doc["doc_type"], doc["content"])
 
     for name, value in fields.items():
         db.execute(
@@ -77,3 +70,16 @@ def extract_fields(doc_id: int) -> dict:
         )
 
     return fields
+
+
+def _extract_with_model(doc: dict) -> dict:
+    """Ask the model for the fields configured for this document type."""
+    prompt = build_extraction_prompt(doc["doc_type"], doc["content"])
+
+    response = _client.messages.create(
+        model=CLASSIFIER_MODEL,
+        max_tokens=512,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    return parse_model_json(response.content[0].text)

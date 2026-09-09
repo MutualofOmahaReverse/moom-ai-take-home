@@ -1,14 +1,15 @@
 """Tests for the classification service."""
 
-from app.services import classifier
+from app.services import classifier, offline
 from app.prompts import build_classification_prompt, DOC_TYPES
 
 
-def test_stub_classify_returns_a_result():
-    """The keyword fallback should return something for any document."""
-    doc = {"id": 1, "content": "ACME PAYROLL Pay Period 01/01 Gross 2400.00"}
-    result = classifier._stub_classify(doc)
-    assert result is not None
+def test_offline_classify_returns_a_result():
+    """The offline classifier should return something for any document."""
+    doc_type, confidence = offline.classify(
+        "ACME PAYROLL Pay Period 01/01 Gross 2400.00"
+    )
+    assert doc_type is not None
 
 
 def test_prompt_includes_the_document_content():
