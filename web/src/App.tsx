@@ -18,6 +18,7 @@ export default function App() {
   const [missing, setMissing] = useState<Missing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
 
   useEffect(() => {
     listLoans().then(setLoans).catch((e) => setError(String(e)));
@@ -31,8 +32,20 @@ export default function App() {
 
   async function runClassifier() {
     setBusy(true);
+    setResult(null);
+    setError(null);
     try {
-      await classifyPending();
+      const { classified } = await classifyPending();
+      // Say what happened. Most of what this changes is not on screen -- the
+      // loan list shows counts, not types -- so without this the button looks
+      // like it did nothing.
+      setResult(
+        classified.length === 0
+          ? "Nothing to classify. Everything already has a type."
+          : `Classified ${classified.length} document${
+              classified.length === 1 ? "" : "s"
+            }.`
+      );
       if (selected !== null) {
         const l = await getLoan(selected);
         setDocs(l.documents);
@@ -59,10 +72,11 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ marginBottom: 14 }}>
+      <div className="actions">
         <button onClick={runClassifier} disabled={busy}>
           {busy ? "Classifying…" : "Classify unclassified documents"}
         </button>
+        {result && <span className="result">{result}</span>}
       </div>
 
       <div className="grid">
