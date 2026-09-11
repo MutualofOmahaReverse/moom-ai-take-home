@@ -43,5 +43,9 @@ export const listLoans = () => get<Loan[]>("/loans");
 export const getLoan = (id: number) =>
   get<Loan & { documents: Doc[] }>(`/loans/${id}`);
 export const getMissing = (id: number) => get<Missing>(`/loans/${id}/missing`);
-export const classifyDoc = (id: number) => post<unknown>(`/documents/${id}/classify`);
-export const classifyPending = () => post<unknown>("/documents/classify-pending");
+export type ClassifyResult = { doc_type: string | null; confidence: number | null };
+
+export const classifyDoc = (id: number) =>
+  post<ClassifyResult>(`/documents/${id}/classify`);
+export const classifyPending = () =>
+  post<{ classified: ClassifyResult[] }>("/documents/classify-pending");
